@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 
 public class BankOperations {
 
@@ -19,10 +21,10 @@ public class BankOperations {
 		System.out.println("==============================================================================");
 		
 
-		System.out.println("1  --->   Customer");
-		System.out.println("2  --->   Admin");
+		System.out.println("1 -> Customer");
+		System.out.println("2 -> Admin");
 		System.out.println("==============================================================================");
-		System.out.println("\t\t Enter your choice:\n\n"); //escape sequence \t,\n
+		System.out.print("\t\t Enter your choice:"); //escape sequence \t,\n
 		int choice=Integer.parseInt(br.readLine());
 		
 		
@@ -30,9 +32,9 @@ public class BankOperations {
 		{
 			System.out.println("==============================================================================");
 			System.out.println("==========================  ENTER LOGIN DETAILS ==============================");
-			System.out.println("\t\t Enter your username:");
+			System.out.print("\t\t Enter your username:");
 			String userName=br.readLine();
-			System.out.println("\t\t Enter your password:");
+			System.out.print("\t\t Enter your password:");
 			String userPassword=br.readLine();
 			System.out.println("==============================================================================");
 			
@@ -50,9 +52,9 @@ public class BankOperations {
 			
 			if(userPassword.equals(password))
 			{
-				System.out.println("==============================================================================");
+			
 				System.out.println("You have successfully logged in!!");
-				System.out.println("==============================================================================");
+				
 				boolean login=true;
 				do
 				{
@@ -69,9 +71,10 @@ public class BankOperations {
 				System.out.println("7  --->   Transaction History");
 				System.out.println("8  --->   Exit / Logout");
 				System.out.println("==============================================================================");				
-				System.out.println("\t\t Enter your choice:\n\n"); 
-				System.out.println("==============================================================================");
+				System.out.print("\t\t Enter your choice:"); 
 				int operationNumber=Integer.parseInt(br.readLine());
+				System.out.println("==============================================================================");
+				
 				
 				String status=null;
 				
@@ -83,14 +86,16 @@ public class BankOperations {
 							if(depositAmount>0)
 							{
 								conn=MysqlConnection.getConnection();
-								ps=conn.prepareStatement("select accBalance from accounts where userName=?");
+								ps=conn.prepareStatement("select * from accounts where userName=?");
 								ps.setString(1, userName);
 								result=ps.executeQuery();
 								
 								double balance=0.0;
+								long accId=0;
 								while(result.next())
 								{
 									balance=result.getDouble("accBalance");
+									accId=result.getLong("accId");
 								}
 								
 								balance=balance+depositAmount;
@@ -101,6 +106,19 @@ public class BankOperations {
 								
 								if(ps.executeUpdate()>0)
 								{
+									ps=conn.prepareStatement("insert into transactions values(?,?,?,?,?,?)");
+									Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+									String transactionId="TN"+timestamp.getTime(); //TN3243432432423
+									ps.setString(1, transactionId);
+									ps.setDouble(2, depositAmount);
+									ps.setDate(3, new Date(System.currentTimeMillis()));
+									ps.setString(4, "deposit");
+									ps.setLong(5,accId);
+									ps.setLong(6,accId);
+									
+									ps.executeUpdate();
+			
+									
 									System.out.println("Balance Updated!!");
 									System.out.println("New Balance: "+balance);
 								}
@@ -125,14 +143,16 @@ public class BankOperations {
 					 if(withdrawalAmount>0)
 					 {
 					    conn=MysqlConnection.getConnection();
-						ps=conn.prepareStatement("select accBalance from accounts where userName=?");
+						ps=conn.prepareStatement("select * from accounts where userName=?");
 						ps.setString(1, userName);
 						result=ps.executeQuery();
 						
 						double balance=0.0;
+						long accId=0;
 						while(result.next())
 						{
 							balance=result.getDouble("accBalance");
+							accId=result.getLong("accId");
 						}
 						
 						
@@ -145,6 +165,18 @@ public class BankOperations {
 							
 							if(ps.executeUpdate()>0)
 							{
+								ps=conn.prepareStatement("insert into transactions values(?,?,?,?,?,?)");
+								Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+								String transactionId="TN"+timestamp.getTime(); //TN3243432432423
+								ps.setString(1, transactionId);
+								ps.setDouble(2, withdrawalAmount);
+								ps.setDate(3, new Date(System.currentTimeMillis()));
+								ps.setString(4, "withdraw");
+								ps.setLong(5,accId);
+								ps.setLong(6,accId);
+								
+								ps.executeUpdate();
+								
 								System.out.println("Balance Updated!!");
 								System.out.println("New Balance: "+balance);
 							}
@@ -168,6 +200,118 @@ public class BankOperations {
 						}
 					 	
 					 	break;
+				    case 3: System.out.println("Please enter the receiver account Id:");
+				    		long rcveId=Long.parseLong(br.readLine());
+				    		
+				    		System.out.println("Enter the amount:");
+				    		double amount=Double.parseDouble(br.readLine());
+				    		
+				    		conn=MysqlConnection.getConnection();
+				    		
+				    		long receiverId=0;
+				    		
+							ps=conn.prepareStatement("select * from accounts where accId=?");
+							ps.setLong(1, rcveId);
+							result=ps.executeQuery();
+							
+							while(result.next())
+							{
+								receiverId=result.getLong("accId");
+							}
+							
+							double availableBalance=0.0;
+							long senderId=0;
+							ps=conn.prepareStatement("select accBalance,accId from accounts where userName=?");
+							ps.setString(1, userName);
+							result=ps.executeQuery();
+							
+							while(result.next())
+							{
+								availableBalance=result.getDouble("accBalance");
+								senderId=result.getLong("accId");
+							}
+							
+							if(receiverId==0)
+							{
+								System.out.println("==============================================================================");				
+								System.out.println("Wrong receiver id!!");
+								System.out.println("==============================================================================");				
+
+							}
+							else if(availableBalance==0 || availableBalance<amount)
+							{
+								System.out.println("==============================================================================");				
+								System.out.println("Insufficient account balance!!");
+								System.out.println("==============================================================================");				
+
+							}
+							else
+							{
+								availableBalance=availableBalance-amount;
+								ps=conn.prepareStatement("update accounts set accBalance=? where userName=?");
+								ps.setDouble(1, availableBalance);
+								ps.setString(2, userName);
+								
+								if(ps.executeUpdate()>0)
+								{
+									ps=conn.prepareStatement("select accBalance from accounts where accId=?");
+									ps.setLong(1, rcveId);
+									double rcvBalance=0.0;
+									result=ps.executeQuery();
+									while(result.next())
+									{
+										rcvBalance=result.getDouble("accBalance");
+									}
+									
+									rcvBalance=rcvBalance + amount;
+									
+									ps=conn.prepareStatement("update accounts set accBalance=? where accId=?");
+									ps.setDouble(1, rcvBalance);
+									ps.setLong(2, receiverId);
+									
+									if(ps.executeUpdate()>0)
+									{
+										 ps=conn.prepareStatement("insert into transactions values(?,?,?,?,?,?)");
+			                                Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+			                                String transactionId="TN"+timestamp.getTime(); //TN3243432432423
+			                                ps.setString(1, transactionId);
+			                                ps.setDouble(2, amount);
+			                                ps.setDate(3, new Date(System.currentTimeMillis()));
+			                                ps.setString(4, "fund transfer");
+			                                ps.setLong(5,senderId);
+			                                ps.setLong(6,rcveId);
+			                                
+			                                ps.executeUpdate();
+										System.out.println("==============================================================================");				
+										System.out.println("Transaction Completed!!");
+										System.out.println("==============================================================================");				
+
+									}
+									else
+									{
+										System.out.println("==============================================================================");				
+										System.out.println("Transaction Failed!!");
+										System.out.println("==============================================================================");				
+
+									}
+									
+								}
+								
+								
+							}
+							System.out.println("Do you want to continue??(Y/N)");
+							 status=br.readLine();
+							
+							if(status.equals("n") || status.equals("N"))
+							{
+								login=false;
+							}
+							
+							break;
+							
+
+				    		
+						
 					 	
 					 	
 					case 4:	conn=MysqlConnection.getConnection();
@@ -193,7 +337,147 @@ public class BankOperations {
 								}
 							 	
 							 	break;
+					case 5: ps=conn.prepareStatement("select * from accounts where userName=?");
+							ps.setString(1, userName);
+							result=ps.executeQuery();
 							
+							while(result.next())
+							{
+								System.out.println("==============================================================================");				
+								System.out.println("Account Details:");
+								System.out.println("==============================================================================");				
+								System.out.println("Account Id: "+result.getLong("accId"));
+								System.out.println("Account Name:"+result.getString("accName"));
+								System.out.println("Account Type: "+result.getString("accType"));
+								System.out.println("Gender: "+result.getString("gender"));
+								System.out.println("Date of Birth :"+result.getDate("dob"));
+								System.out.println("Account Balance:"+result.getDouble("accBalance"));
+								System.out.println("Account Id:"+result.getLong("accId"));
+								System.out.println("Email: "+result.getString("email"));
+								System.out.println("Phone:"+result.getLong("phone"));
+								System.out.println("==============================================================================");				
+								
+
+							}
+							
+							System.out.println("Do you want to continue??(Y/N)");
+							 status=br.readLine();
+							
+							if(status.equals("n") || status.equals("N"))
+							{
+								login=false;
+							}
+							break;
+					case 6: System.out.println("Please enter the existing password: ");
+							String existingPassword=br.readLine();
+							
+							System.out.println("Set new Password:");
+							String newPassword=br.readLine();
+							
+							System.out.println("Retype new password:");
+							String retypePassword=br.readLine();
+							
+							
+							ps=conn.prepareStatement("select userPassword from accounts where userName=?");
+							ps.setString(1, userName);
+							
+							result=ps.executeQuery();
+							String accountPassword=null;
+							while(result.next())
+							{
+								accountPassword=result.getString("userPassword");
+							}
+							
+							if(accountPassword.equals(existingPassword))
+							{
+								if(newPassword.equals(retypePassword))
+								{
+									ps=conn.prepareStatement("update accounts set userPassword=? where userName=?");
+									ps.setString(1, newPassword);
+									ps.setString(2, userName);
+									
+									if(ps.executeUpdate()>0)
+									{
+										System.out.println("==============================================================================");				
+										System.out.println("Passowrd Changed!!");
+										System.out.println("==============================================================================");				
+										
+									}
+									
+									else
+									{
+										System.out.println("==============================================================================");				
+										System.out.println("Error in password change!!");
+										System.out.println("==============================================================================");				
+										
+									}
+								}
+								else
+								{
+									System.out.println("==============================================================================");				
+									System.out.println("Set new password and retype password must be same!!");
+									System.out.println("==============================================================================");				
+									
+								}
+							}
+							else
+							{
+								System.out.println("==============================================================================");				
+								System.out.println("Please enter correct existing password!!");
+								System.out.println("==============================================================================");				
+								
+					
+							}
+							
+							System.out.println("Do you want to continue??(Y/N)");
+							status=br.readLine();
+							System.out.println("==============================================================================");				
+
+							if(status.equals("n") || status.equals("N"))
+							{
+								login=false;
+							}
+							break;
+					case 7: ps=conn.prepareStatement("select * from accounts where userName=?");
+							ps.setString(1, userName);
+							
+							result=ps.executeQuery();
+							long accId=0;
+							while(result.next())
+							{
+								accId=result.getLong("accId");
+							}
+							if(accId!=0)
+							{
+								ps=conn.prepareStatement("select * from transactions where senderAccountId=?");
+								ps.setLong(1, accId);
+								
+								result=ps.executeQuery();
+								System.out.println("==============================================================================");	
+								System.out.println("TransactionId \t Amount \t Date \t Type ");
+								System.out.println("==============================================================================");	
+								while(result.next())
+								{
+									System.out.println(result.getString("transactionId")+"\t"+result.getDouble("transactionAmount")+"\t"+result.getDate("transactiondate")+"\t"+result.getString("transactionType"));
+								}
+								System.out.println("==============================================================================");	
+							}
+							System.out.println("Do you want to continue??(Y/N)");
+							status=br.readLine();
+							System.out.println("==============================================================================");				
+
+							if(status.equals("n") || status.equals("N"))
+							{
+								login=false;
+							}
+							break;
+					case 8:  login=false;
+							 break;
+					
+						
+							
+					default:System.out.println("Wrong Input!!");		
+								
 
 				}
 				
@@ -201,12 +485,18 @@ public class BankOperations {
 				
 			}
 				while(login);
+				System.out.println("==============================================================================");				
 				System.out.println("Bye.");
 				System.out.println("Have a nice day!!");
+				System.out.println("==============================================================================");				
+
 			}
 			else
 			{
+				System.out.println("==============================================================================");				
 				System.out.println("Wrong username/password!!");
+				System.out.println("==============================================================================");				
+
 			}
 			
 			
