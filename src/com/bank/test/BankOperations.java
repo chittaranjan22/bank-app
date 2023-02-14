@@ -701,7 +701,12 @@ public class BankOperations {
 			
 			
 			}
-			while(true);
+			while(login);
+			System.out.println("==============================================================================");				
+			System.out.println("Bye.");
+			System.out.println("Have a nice day!!");
+			System.out.println("==============================================================================");				
+
 		}
 		else if(password==null)
 		{
